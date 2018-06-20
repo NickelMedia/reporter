@@ -39,6 +39,7 @@ type Report interface {
 
 type grafanaReport struct {
 	gClient     grafana.Client
+	wc          grafana.WriteupClient
 	time        grafana.TimeRange
 	texTemplate string
 	dashName    string
@@ -53,21 +54,24 @@ const (
 
 // New creates a new Report.
 // texTemplate is the content of a LaTex template file. If empty, a default tex template is used.
-func New(g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string) Report {
-	return newReport(g, dashName, time, texTemplate)
+func New(dbHost string, dbPort string, username string, password string, database string,
+	g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{}) Report {
+	return newReport(dbHost, dbPort, username, password, database, g, dashName, time, texTemplate, ids)
 }
 
-func newReport(g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string) *grafanaReport {
+func newReport(dbHost string, dbPort string, username string, password string, database string,
+	g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{}) *grafanaReport {
 	if texTemplate == "" {
 		texTemplate = defaultTemplate
 	}
 	tmpDir := filepath.Join("tmp", uuid.New())
-	return &grafanaReport{g, time, texTemplate, dashName, tmpDir}
+	wc := grafana.NewWriteupClient(dbHost, dbPort, username, password, database, ids)
+	return &grafanaReport{g, wc, time, texTemplate, dashName, tmpDir}
 }
 
 // Generate returns the report.pdf file.  After reading this file it should be Closed()
-// After closing the file, call report.Clean() to delete the file as well the temporary build files
-func (rep *report) Generate() (pdf io.ReadCloser, err error) {
+// After closing the file, call grafanaReport.Clean() to delete the file as well the temporary build files
+func (rep *grafanaReport) Generate() (pdf io.ReadCloser, err error) {
 	dash, err := rep.gClient.GetDashboard(rep.dashName)
 	if err != nil {
 		err = fmt.Errorf("error fetching dashboard %v: %v", rep.dashName, err)
@@ -75,14 +79,15 @@ func (rep *report) Generate() (pdf io.ReadCloser, err error) {
 	}
 	writeups, err := rep.wc.GetWriteup()
 	if err != nil {
-		err = fmt.Errorf("error fetching remote writeups for dash %+v: %v", dash, err)
+		err = fmt.Errorf("error fetching remote writeups: %v", err)
+		return
 	}
 	err = rep.renderPNGsParallel(dash)
 	if err != nil {
 		err = fmt.Errorf("error rendering PNGs in parralel for dash %+v: %v", dash, err)
 		return
 	}
-	err = rep.generateTeXFile(dash)
+	err = rep.generateTeXFile(dash, writeups)
 	if err != nil {
 		err = fmt.Errorf("error generating TeX file for dash %+v: %v", dash, err)
 		return
@@ -119,7 +124,7 @@ func (rep *grafanaReport) renderPNGsParallel(dash grafana.Dashboard) error {
 	}
 	close(panels)
 
-	//fetch images in parrallel form Grafana sever.
+	//fetch images in parallel from Grafana sever.
 	//limit concurrency using a worker pool to avoid overwhelming grafana
 	//for dashboards with many panels.
 	var wg sync.WaitGroup
@@ -174,11 +179,12 @@ func (rep *grafanaReport) renderPNG(p grafana.Panel) error {
 	return nil
 }
 
-func (rep *grafanaReport) generateTeXFile(dash grafana.Dashboard) error {
+func (rep *grafanaReport) generateTeXFile(dash grafana.Dashboard, writeup grafana.Writeup) error {
 	type templData struct {
 		grafana.Dashboard
 		grafana.TimeRange
 		grafana.Client
+		grafana.Writeup
 	}
 
 	err := os.MkdirAll(rep.tmpDir, 0777)
@@ -195,7 +201,7 @@ func (rep *grafanaReport) generateTeXFile(dash grafana.Dashboard) error {
 	if err != nil {
 		return fmt.Errorf("error parsing template '%s': %v", rep.texTemplate, err)
 	}
-	data := templData{dash, rep.time, rep.gClient}
+	data := templData{dash, rep.time, rep.gClient, writeup}
 	err = tmpl.Execute(file, data)
 	if err != nil {
 		return fmt.Errorf("error executing tex template:%v", err)

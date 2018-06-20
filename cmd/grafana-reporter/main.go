@@ -32,6 +32,14 @@ var ip = flag.String("ip", "localhost:3000", "Grafana IP and port")
 var port = flag.String("port", ":8686", "Port to serve on")
 var templateDir = flag.String("templates", "templates/", "Directory for custom TeX templates")
 
+var (
+	dbHost = flag.String("dbHost", "", "Reporting metadata database host")
+	dbPort = flag.String("dbPort", "", "Reporting metadata database port")
+	username = flag.String("username", "", "Reporting metadata database username")
+	password = flag.String("password", "", "Reporting metadata database password")
+	database = flag.String("database", "", "Reporting metadata database name")
+)
+
 func main() {
 	flag.Parse()
 	log.SetOutput(os.Stdout)
@@ -39,6 +47,9 @@ func main() {
 	//'generated*'' variables injected from build.gradle: task 'injectGoVersion()'
 	log.Printf("grafana reporter, version: %s.%s-%s hash: %s", generatedMajor, generatedMinor, generatedRelease, generatedGitHash)
 	log.Printf("serving at '%s' and using grafana at '%s'", *port, *ip)
+	if len(*dbHost) > 0 {
+		log.Printf("using report metadata database at '%s'", *dbHost)
+	}
 
 	router := mux.NewRouter()
 	RegisterHandlers(

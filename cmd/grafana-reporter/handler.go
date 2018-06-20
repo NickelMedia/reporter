@@ -28,12 +28,14 @@ import (
 	"github.com/IzakMarais/reporter/grafana"
 	"github.com/IzakMarais/reporter/report"
 	"github.com/gorilla/mux"
+	"strconv"
 )
 
 // ServeReportHandler interface facilitates testsing the reportServing http handler
 type ServeReportHandler struct {
 	newGrafanaClient func(url string, apiToken string, variables url.Values) grafana.Client
-	newReport        func(g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string) report.Report
+	newReport        func(dbHost string, dbPort string, username string, password string, database string,
+		                  g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{}) report.Report
 }
 
 // RegisterHandlers registers all http.Handler's with their associated routes to the router
@@ -46,7 +48,7 @@ func RegisterHandlers(router *mux.Router, reportServerV4, reportServerV5 ServeRe
 func (h ServeReportHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	log.Print("Reporter called")
 	g := h.newGrafanaClient(*proto+*ip, apiToken(req), dashVariables(req))
-	rep := h.newReport(g, dashID(req), time(req), texTemplate(req))
+	rep := h.newReport(*dbHost, *dbPort, *username, *password, *database, g, dashID(req), time(req), texTemplate(req), ids(req))
 
 	file, err := rep.Generate()
 	if err != nil {
@@ -117,4 +119,17 @@ func texTemplate(r *http.Request) string {
 	}
 
 	return string(customTemplate)
+}
+
+func ids(r *http.Request) []interface{} {
+	m := r.URL.Query()
+	ids := make([]interface{}, len(m["ids"]))
+	for i, v := range m["ids"] {
+		log.Println("Called with report id: ", v)
+		ids[i], _ = strconv.ParseInt(v, 10, 64)
+	}
+	if len(ids) == 0 {
+		log.Println("Called without report id")
+	}
+	return ids
 }

@@ -135,5 +135,6 @@ func sanitizeLaTexInput(input string) string {
 	input = strings.Replace(input, "}", "\\}", -1)
 	input = strings.Replace(input, "~", "\\textasciitilde ", -1)
 	input = strings.Replace(input, "^", "\\textasciicircum ", -1)
+	input = strings.Replace(input, "\n\n", "\\\\[2\\baselineskip]", -1)
 	return input
 }
