@@ -17,7 +17,6 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -25,6 +24,7 @@ import (
 	"github.com/IzakMarais/reporter/grafana"
 	"github.com/IzakMarais/reporter/report"
 	"github.com/gorilla/mux"
+	"github.com/namsral/flag"
 )
 
 var proto = flag.String("proto", "http://", "Grafana Protocol")
