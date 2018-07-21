@@ -55,17 +55,19 @@ const (
 // New creates a new Report.
 // texTemplate is the content of a LaTex template file. If empty, a default tex template is used.
 func New(dbHost string, dbPort string, username string, password string, database string,
-	g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{}) Report {
-	return newReport(dbHost, dbPort, username, password, database, g, dashName, time, texTemplate, ids)
+	g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{},
+    queryStr string) Report {
+	return newReport(dbHost, dbPort, username, password, database, g, dashName, time, texTemplate, ids, queryStr)
 }
 
 func newReport(dbHost string, dbPort string, username string, password string, database string,
-	g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{}) *grafanaReport {
+	g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{},
+    queryStr string) *grafanaReport {
 	if texTemplate == "" {
 		texTemplate = defaultTemplate
 	}
 	tmpDir := filepath.Join("tmp", uuid.New())
-	wc := grafana.NewWriteupClient(dbHost, dbPort, username, password, database, ids)
+	wc := grafana.NewWriteupClient(dbHost, dbPort, username, password, database, ids, queryStr)
 	return &grafanaReport{g, wc, time, texTemplate, dashName, tmpDir}
 }
 

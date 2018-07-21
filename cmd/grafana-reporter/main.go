@@ -38,6 +38,7 @@ var (
 	username = flag.String("username", "", "Reporting metadata database username")
 	password = flag.String("password", "", "Reporting metadata database password")
 	database = flag.String("database", "", "Reporting metadata database name")
+	queryStr = flag.String("query", "SELECT title, content FROM sections WHERE report_id IN (?) ORDER BY FIELD(title, 'Project', 'Overview', 'Targets', 'Method', 'Results');", "Reporting metadata query")
 )
 
 func main() {

@@ -22,10 +22,11 @@ type WriteupClient interface {
 type writeupClient struct {
 	username, password, host, port, database string
 	ids []interface{}
+	queryStr string
 }
 
-func NewWriteupClient(host, port, username, password, database string, ids []interface{}) WriteupClient {
-	return &writeupClient{username, password, host, port, database, ids}
+func NewWriteupClient(host, port, username, password, database string, ids []interface{}, queryStr string) WriteupClient {
+	return &writeupClient{username, password, host, port, database, ids, queryStr}
 }
 
 func (c *writeupClient) GetWriteup() (Writeup, error) {
@@ -39,7 +40,7 @@ func (c *writeupClient) GetWriteup() (Writeup, error) {
 	}
 	defer db.Close()
 
-	results, err := db.Query("SELECT title, content FROM sections WHERE report_id IN (?) ORDER BY FIELD(title, 'Overview', 'Targets', 'Project', 'Method', 'Results');", c.ids...)
+	results, err := db.Query(fmt.Sprintf("%s", c.queryStr), c.ids...)
 	if err != nil {
 		return Writeup{}, err
 	}

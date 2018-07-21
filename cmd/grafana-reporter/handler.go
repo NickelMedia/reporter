@@ -35,7 +35,7 @@ import (
 type ServeReportHandler struct {
 	newGrafanaClient func(url string, apiToken string, variables url.Values) grafana.Client
 	newReport        func(dbHost string, dbPort string, username string, password string, database string,
-		                  g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{}) report.Report
+		                  g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{}, queryStr string) report.Report
 }
 
 // RegisterHandlers registers all http.Handler's with their associated routes to the router
@@ -48,7 +48,7 @@ func RegisterHandlers(router *mux.Router, reportServerV4, reportServerV5 ServeRe
 func (h ServeReportHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	log.Print("Reporter called")
 	g := h.newGrafanaClient(*proto+*ip, apiToken(req), dashVariables(req))
-	rep := h.newReport(*dbHost, *dbPort, *username, *password, *database, g, dashID(req), time(req), texTemplate(req), ids(req))
+	rep := h.newReport(*dbHost, *dbPort, *username, *password, *database, g, dashID(req), time(req), texTemplate(req), ids(req), *queryStr)
 
 	file, err := rep.Generate()
 	if err != nil {
