@@ -50,6 +50,7 @@ type grafanaReport struct {
 const (
 	imgDir        = "images"
 	reportTexFile = "report.tex"
+	reportXdvFile = "report.xdv"
 	reportPdf     = "report.pdf"
 )
 
@@ -213,26 +214,43 @@ func (rep *grafanaReport) generateTeXFile(dash grafana.Dashboard, writeup grafan
 }
 
 func (rep *grafanaReport) runLaTeX() (pdf *os.File, err error) {
-	cmdStr := "xelatex"
 	if !rep.useXelatex {
-		cmdStr = "pdflatex"
-		cmdPre := exec.Command(cmdStr, "-halt-on-error", "-draftmode", reportTexFile)
+		cmdPre := exec.Command("pdflatex", "-halt-on-error", "-draftmode", reportTexFile)
 		cmdPre.Dir = rep.tmpDir
 		outBytesPre, errPre := cmdPre.CombinedOutput()
 		log.Println("Calling LaTeX - preprocessing")
 		if errPre != nil {
 			err = fmt.Errorf("error calling LaTeX preprocessing: %q. Latex preprocessing failed with output: %s ", errPre, string(outBytesPre))
-			return
+			return nil, err
+		}
+
+		cmd := exec.Command("pdflatex", "-halt-on-error", reportTexFile)
+		cmd.Dir = rep.tmpDir
+		outBytes, err := cmd.CombinedOutput()
+		log.Println("Calling LaTeX and building PDF")
+		if err != nil {
+			err = fmt.Errorf("error calling LaTeX: %q. Latex failed with output: %s ", err, string(outBytes))
+			return nil, err
+		}
+	} else {
+		cmdPre := exec.Command("xelatex", "-halt-on-error", "-no-pdf", reportTexFile)
+		cmdPre.Dir = rep.tmpDir
+		outBytesPre, errPre := cmdPre.CombinedOutput()
+		log.Println("Calling LaTeX - preprocessing")
+		if errPre != nil {
+			err = fmt.Errorf("error calling LaTeX: %q. Latex failed with output: %s ", errPre, string(outBytesPre))
+			return nil, err
+		}
+
+		cmd := exec.Command("xdvipdfmx", "-vv", reportXdvFile)
+		cmd.Dir = rep.tmpDir
+		outBytes, err := cmd.CombinedOutput()
+		log.Println("Calling xdvipdfmx and building PDF")
+		if err != nil {
+			err = fmt.Errorf("error calling xdvipdfmx: %q. xdvipdfmx failed with output: %s ", err, string(outBytes))
+			return nil, err
 		}
 	}
-	cmd := exec.Command(cmdStr, "-halt-on-error", reportTexFile)
-	cmd.Dir = rep.tmpDir
-	outBytes, err := cmd.CombinedOutput()
-	log.Println("Calling LaTeX and building PDF")
-	if err != nil {
-		err = fmt.Errorf("error calling LaTeX: %q. Latex failed with output: %s ", err, string(outBytes))
-		return
-	}
 	pdf, err = os.Open(rep.pdfPath())
-	return
+	return nil, err
 }
