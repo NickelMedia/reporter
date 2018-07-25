@@ -252,5 +252,5 @@ func (rep *grafanaReport) runLaTeX() (pdf *os.File, err error) {
 		}
 	}
 	pdf, err = os.Open(rep.pdfPath())
-	return nil, err
+	return pdf, err
 }
