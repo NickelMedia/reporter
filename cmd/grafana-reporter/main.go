@@ -39,6 +39,7 @@ var (
 	password = flag.String("password", "", "Reporting metadata database password")
 	database = flag.String("database", "", "Reporting metadata database name")
 	queryStr = flag.String("query", "SELECT title, content FROM sections WHERE report_id IN (?) ORDER BY FIELD(title, 'Project', 'Overview', 'Targets', 'Method', 'Results');", "Reporting metadata query")
+	useXelatex = flag.Bool("use-xelatex", false, "Flag to compile using XeLaTeX instead of pdfLaTeX")
 )
 
 func main() {

@@ -44,6 +44,7 @@ type grafanaReport struct {
 	texTemplate string
 	dashName    string
 	tmpDir      string
+	useXelatex  bool
 }
 
 const (
@@ -56,19 +57,19 @@ const (
 // texTemplate is the content of a LaTex template file. If empty, a default tex template is used.
 func New(dbHost string, dbPort string, username string, password string, database string,
 	g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{},
-    queryStr string) Report {
-	return newReport(dbHost, dbPort, username, password, database, g, dashName, time, texTemplate, ids, queryStr)
+    queryStr string, useXelatex bool) Report {
+	return newReport(dbHost, dbPort, username, password, database, g, dashName, time, texTemplate, ids, queryStr, useXelatex)
 }
 
 func newReport(dbHost string, dbPort string, username string, password string, database string,
 	g grafana.Client, dashName string, time grafana.TimeRange, texTemplate string, ids []interface{},
-    queryStr string) *grafanaReport {
+    queryStr string, useXelatex bool) *grafanaReport {
 	if texTemplate == "" {
 		texTemplate = defaultTemplate
 	}
 	tmpDir := filepath.Join("tmp", uuid.New())
 	wc := grafana.NewWriteupClient(dbHost, dbPort, username, password, database, ids, queryStr)
-	return &grafanaReport{g, wc, time, texTemplate, dashName, tmpDir}
+	return &grafanaReport{g, wc, time, texTemplate, dashName, tmpDir, useXelatex}
 }
 
 // Generate returns the report.pdf file.  After reading this file it should be Closed()
@@ -212,15 +213,19 @@ func (rep *grafanaReport) generateTeXFile(dash grafana.Dashboard, writeup grafan
 }
 
 func (rep *grafanaReport) runLaTeX() (pdf *os.File, err error) {
-	cmdPre := exec.Command("pdflatex", "-halt-on-error", "-draftmode", reportTexFile)
-	cmdPre.Dir = rep.tmpDir
-	outBytesPre, errPre := cmdPre.CombinedOutput()
-	log.Println("Calling LaTeX - preprocessing")
-	if errPre != nil {
-		err = fmt.Errorf("error calling LaTeX preprocessing: %q. Latex preprocessing failed with output: %s ", errPre, string(outBytesPre))
-		return
+	cmdStr := "xelatex"
+	if !rep.useXelatex {
+		cmdStr = "pdflatex"
+		cmdPre := exec.Command(cmdStr, "-halt-on-error", "-draftmode", reportTexFile)
+		cmdPre.Dir = rep.tmpDir
+		outBytesPre, errPre := cmdPre.CombinedOutput()
+		log.Println("Calling LaTeX - preprocessing")
+		if errPre != nil {
+			err = fmt.Errorf("error calling LaTeX preprocessing: %q. Latex preprocessing failed with output: %s ", errPre, string(outBytesPre))
+			return
+		}
 	}
-	cmd := exec.Command("pdflatex", "-halt-on-error", reportTexFile)
+	cmd := exec.Command(cmdStr, "-halt-on-error", reportTexFile)
 	cmd.Dir = rep.tmpDir
 	outBytes, err := cmd.CombinedOutput()
 	log.Println("Calling LaTeX and building PDF")
